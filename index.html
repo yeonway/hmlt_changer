@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>나만의 레이아웃 디자이너 (심플)</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: sans-serif;
+      display: flex;
+      height: 100vh;
+      background: #181818;
+      color: #eee;
+    }
+
+    /* 왼쪽 도구 */
+    .sidebar {
+      width: 220px;
+      border-right: 1px solid #333;
+      padding: 12px;
+      background: #111;
+      font-size: 13px;
+    }
+    .sidebar h2 {
+      margin: 0 0 8px;
+      font-size: 16px;
+    }
+    .btn {
+      width: 100%;
+      padding: 6px 8px;
+      margin-bottom: 6px;
+      border: 1px solid #444;
+      background: #222;
+      color: #eee;
+      border-radius: 4px;
+      cursor: pointer;
+      text-align: left;
+      font-size: 13px;
+    }
+    .btn:hover { background: #333; }
+    .sidebar small { color: #888; }
+
+    /* 오른쪽 전체 */
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+    .top-bar {
+      padding: 6px 10px;
+      border-bottom: 1px solid #333;
+      background: #111;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      gap: 8px;
+    }
+    .top-bar-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .top-bar input {
+      width: 70px;
+      padding: 2px 4px;
+      border-radius: 4px;
+      border: 1px solid #444;
+      background: #222;
+      color: #eee;
+      font-size: 11px;
+    }
+    .top-small-btn {
+      padding: 3px 6px;
+      border-radius: 4px;
+      border: 1px solid #444;
+      background: #222;
+      color: #eee;
+      cursor: pointer;
+      font-size: 11px;
+    }
+    .top-small-btn.active {
+      background: #3b82f6;
+      border-color: #1d4ed8;
+    }
+
+    /* 작업 영역 */
+    .workspace {
+      flex: 1;
+      display: flex;
+      padding: 8px;
+      gap: 8px;
+      background: #181818;
+      min-height: 0;
+      min-width: 0;
+    }
+    .workspace.horizontal { flex-direction: row; }  /* 코드 오른쪽 */
+    .workspace.vertical { flex-direction: column; } /* 코드 아래 */
+
+    .canvas-wrap {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-width: 0;
+      min-height: 0;
+    }
+    #canvas {
+      position: relative;
+      background: #202020;
+      border: 1px solid #555;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    /* 코드 패널 */
+    .code-panel {
+      background: #111;
+      border: 1px solid #333;
+      border-radius: 6px;
+      padding: 6px;
+      display: flex;
+      flex-direction: column;
+      min-width: 260px;
+      max-width: 800px;
+      min-height: 160px;
+      resize: horizontal;
+      overflow: auto;
+      font-size: 12px;
+    }
+    .code-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+    #exportBtn {
+      padding: 3px 8px;
+      border-radius: 4px;
+      border: none;
+      background: #22c55e;
+      color: #111;
+      font-size: 11px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    #exportBtn:hover { background: #16a34a; }
+    #code {
+      flex: 1;
+      background: #000;
+      color: #eee;
+      border-radius: 4px;
+      padding: 6px;
+      font-family: Consolas, monospace;
+      font-size: 11px;
+      white-space: pre;
+      overflow: auto;
+      border: 1px solid #333;
+    }
+
+    /* 요소들 */
+    .element {
+      position: absolute;
+      min-width: 40px;
+      min-height: 24px;
+      padding: 4px 6px;
+      border-radius: 4px;
+      cursor: move;
+      user-select: none;
+      font-size: 14px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      box-shadow: 0 0 0 1px #0004;
+      overflow: hidden;
+    }
+    .element.text {
+      background: #1f2933;
+      border: 1px solid #4b5563;
+      color: #e5e7eb;
+    }
+    .element.button {
+      background: #2563eb;
+      border: 1px solid #1d4ed8;
+      color: #ffffff;
+    }
+    .element.image {
+      padding: 0;
+      background: #000;
+      border: 1px solid #4b5563;
+    }
+    .element.image img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      pointer-events: none;
+    }
+    .element.selected {
+      outline: 2px dashed #f97316;
+      outline-offset: 1px;
+    }
+
+    .resize-handle {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      right: 0;
+      bottom: 0;
+      background: #f97316;
+      cursor: se-resize;
+      border-radius: 2px 0 0 0;
+    }
+
+    /* 모달 */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .modal-backdrop.show { display: flex; }
+    .modal {
+      background: #111827;
+      border-radius: 8px;
+      padding: 14px;
+      width: 320px;
+      border: 1px solid #4b5563;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.6);
+      font-size: 13px;
+    }
+    .modal h3 {
+      margin: 0 0 6px;
+      font-size: 15px;
+    }
+    .modal label {
+      font-size: 12px;
+      display: block;
+      margin-top: 6px;
+      margin-bottom: 3px;
+    }
+    .modal textarea,
+    .modal input[type="number"] {
+      width: 100%;
+      padding: 4px 6px;
+      background: #020617;
+      border: 1px solid #4b5563;
+      border-radius: 4px;
+      color: #e5e7eb;
+      font-size: 12px;
+    }
+    .modal-footer {
+      margin-top: 10px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 6px;
+    }
+    .modal-btn {
+      padding: 4px 8px;
+      font-size: 12px;
+      border-radius: 4px;
+      border: 1px solid #4b5563;
+      background: #1f2937;
+      color: #e5e7eb;
+      cursor: pointer;
+    }
+    .modal-btn.save {
+      background: #3b82f6;
+      border-color: #2563eb;
+    }
+  </style>
+</head>
+<body>
+
+<!-- 왼쪽 사이드바 -->
+<div class="sidebar">
+  <h2>도구</h2>
+  <button class="btn" id="addTextBtn">텍스트 박스 추가</button>
+  <button class="btn" id="addButtonBtn">버튼 추가</button>
+  <button class="btn" id="addImageBtn">이미지 추가 (파일)</button>
+  <hr style="border-color:#333;">
+  <small>
+    • 요소 클릭 → 선택<br>
+    • 드래그 → 이동 (부드럽게)<br>
+    • 모서리 잡고 드래그 → 크기 조절<br>
+    • 텍스트/버튼 더블클릭 → 내용/글자 크기 수정<br>
+    • 이미지 더블클릭 → 다른 이미지로 교체<br>
+    • Delete 키 → 선택 요소 삭제<br>
+  </small>
+  <!-- 숨겨진 이미지 파일 입력 -->
+  <input id="imageFileInput" type="file" accept="image/*" style="display:none;">
+</div>
+
+<!-- 오른쪽 메인 -->
+<div class="main">
+  <div class="top-bar">
+    <div class="top-bar-group">
+      <span>캔버스 크기</span>
+      <span>W</span><input id="canvasWidthInput" type="number">
+      <span>H</span><input id="canvasHeightInput" type="number">
+      <button class="top-small-btn" id="applyCanvasSizeBtn">적용</button>
+    </div>
+    <div class="top-bar-group">
+      <span>코드 패널</span>
+      <button class="top-small-btn active" id="layoutRightBtn">오른쪽</button>
+      <button class="top-small-btn" id="layoutBottomBtn">아래</button>
+      <button class="top-small-btn" id="clearBtn">전체 삭제</button>
+    </div>
+  </div>
+
+  <div id="workspace" class="workspace horizontal">
+    <div class="canvas-wrap">
+      <div id="canvas"></div>
+    </div>
+
+    <div class="code-panel">
+      <div class="code-header">
+        <span>HTML 코드</span>
+        <button id="exportBtn">코드 생성</button>
+      </div>
+      <pre id="code"></pre>
+    </div>
+  </div>
+</div>
+
+<!-- 텍스트/버튼 편집 모달 -->
+<div id="modalBackdrop" class="modal-backdrop">
+  <div class="modal">
+    <h3>텍스트/버튼 설정</h3>
+    <label for="modalText">텍스트</label>
+    <textarea id="modalText" rows="3"></textarea>
+    <label for="modalFontSize">글자 크기 (px)</label>
+    <input id="modalFontSize" type="number" min="8" max="72" step="1">
+    <div class="modal-footer">
+      <button class="modal-btn" id="modalCancel">취소</button>
+      <button class="modal-btn save" id="modalSave">저장</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ===== 기본 설정 =====
+  const canvas = document.getElementById('canvas');
+  const workspace = document.getElementById('workspace');
+  const codeBox = document.getElementById('code');
+  const canvasWidthInput = document.getElementById('canvasWidthInput');
+  const canvasHeightInput = document.getElementById('canvasHeightInput');
+  const imageFileInput = document.getElementById('imageFileInput');
+
+  let currentId = 0;
+  let selectedEl = null;
+  let editingEl = null;
+  let pendingImageTarget = null; // 'new' or element
+
+  const defaultCanvas = { width: 800, height: 500 };
+
+  // 초기 캔버스 크기
+  function applyCanvasSize(w, h) {
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
+  }
+  applyCanvasSize(defaultCanvas.width, defaultCanvas.height);
+  canvasWidthInput.value = defaultCanvas.width;
+  canvasHeightInput.value = defaultCanvas.height;
+
+  document.getElementById('applyCanvasSizeBtn').onclick = () => {
+    const w = parseInt(canvasWidthInput.value, 10);
+    const h = parseInt(canvasHeightInput.value, 10);
+    if (w > 0 && h > 0) applyCanvasSize(w, h);
+  };
+
+  // 코드 패널 위치 변경
+  const layoutRightBtn = document.getElementById('layoutRightBtn');
+  const layoutBottomBtn = document.getElementById('layoutBottomBtn');
+
+  layoutRightBtn.onclick = () => {
+    workspace.classList.remove('vertical');
+    workspace.classList.add('horizontal');
+    layoutRightBtn.classList.add('active');
+    layoutBottomBtn.classList.remove('active');
+  };
+  layoutBottomBtn.onclick = () => {
+    workspace.classList.remove('horizontal');
+    workspace.classList.add('vertical');
+    layoutBottomBtn.classList.add('active');
+    layoutRightBtn.classList.remove('active');
+  };
+
+  // 선택 처리
+  function selectElement(el) {
+    if (selectedEl) selectedEl.classList.remove('selected');
+    selectedEl = el;
+    if (selectedEl) selectedEl.classList.add('selected');
+  }
+
+  canvas.addEventListener('click', (e) => {
+    if (e.target === canvas) {
+      selectElement(null);
+    }
+  });
+
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Delete' && selectedEl) {
+      selectedEl.remove();
+      selectedEl = null;
+    }
+  });
+
+  // 요소 추가 함수들
+  document.getElementById('addTextBtn').onclick = () => {
+    createElement('text');
+  };
+  document.getElementById('addButtonBtn').onclick = () => {
+    createElement('button');
+  };
+  document.getElementById('addImageBtn').onclick = () => {
+    pendingImageTarget = 'new';
+    imageFileInput.click();
+  };
+
+  // 전체 삭제
+  document.getElementById('clearBtn').onclick = () => {
+    canvas.innerHTML = '';
+    selectedEl = null;
+    currentId = 0;
+    codeBox.textContent = '';
+  };
+
+  function createElement(type, options = {}) {
+    const el = document.createElement('div');
+    el.classList.add('element', type);
+    el.dataset.type = type;
+    el.dataset.id = ++currentId;
+
+    el.style.left = (options.left ?? 50) + 'px';
+    el.style.top = (options.top ?? 50) + 'px';
+
+    if (type === 'text' || type === 'button') {
+      const text = options.text ?? (type === 'button' ? '버튼' : '텍스트');
+      const fontSize = options.fontSize ?? 14;
+      el.textContent = text;
+      el.style.fontSize = fontSize + 'px';
+      el.dataset.fontSize = fontSize;
+      el.style.width = (options.width ?? (type === 'button' ? 120 : 150)) + 'px';
+      el.style.height = (options.height ?? 40) + 'px';
+      if (type === 'text') {
+        el.style.backgroundColor = '#1f2933';
+        el.style.border = '1px solid #4b5563';
+        el.style.color = '#e5e7eb';
+      } else {
+        el.style.backgroundColor = '#2563eb';
+        el.style.border = '1px solid #1d4ed8';
+        el.style.color = '#ffffff';
+      }
+    } else if (type === 'image') {
+      const img = document.createElement('img');
+      img.src = options.src ?? '';
+      img.alt = '';
+      el.appendChild(img);
+      el.style.width = (options.width ?? 200) + 'px';
+      el.style.height = (options.height ?? 140) + 'px';
+    }
+
+    const handle = document.createElement('div');
+    handle.classList.add('resize-handle');
+    el.appendChild(handle);
+
+    makeDraggable(el);
+    makeResizable(el, handle);
+    canvas.appendChild(el);
+  }
+
+  // 드래그 (부드럽게)
+  function makeDraggable(el) {
+    let isDragging = false;
+    let offsetX = 0, offsetY = 0;
+
+    el.addEventListener('mousedown', (e) => {
+      if (e.target.classList.contains('resize-handle')) return;
+      isDragging = true;
+      selectElement(el);
+
+      const rect = el.getBoundingClientRect();
+      const canvasRect = canvas.getBoundingClientRect();
+      offsetX = e.clientX - rect.left;
+      offsetY = e.clientY - rect.top;
+
+      function onMove(ev) {
+        if (!isDragging) return;
+        const x = ev.clientX - canvasRect.left - offsetX;
+        const y = ev.clientY - canvasRect.top - offsetY;
+        el.style.left = Math.max(0, Math.min(x, canvas.clientWidth - el.offsetWidth)) + 'px';
+        el.style.top = Math.max(0, Math.min(y, canvas.clientHeight - el.offsetHeight)) + 'px';
+      }
+
+      function onUp() {
+        isDragging = false;
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      }
+
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+
+    // 텍스트/버튼 더블클릭 → 모달
+    el.addEventListener('dblclick', (e) => {
+      e.stopPropagation();
+      if (el.dataset.type === 'image') {
+        // 이미지면 파일 다시 골라서 교체
+        pendingImageTarget = el;
+        imageFileInput.click();
+      } else {
+        openModal(el);
+      }
+    });
+  }
+
+  // 크기 조절 (부드럽게)
+  function makeResizable(el, handle) {
+    let isResizing = false;
+    let startX, startY, startW, startH;
+
+    handle.addEventListener('mousedown', (e) => {
+      e.stopPropagation();
+      isResizing = true;
+      const rect = el.getBoundingClientRect();
+      startX = e.clientX;
+      startY = e.clientY;
+      startW = rect.width;
+      startH = rect.height;
+
+      function onMove(ev) {
+        if (!isResizing) return;
+        const newW = Math.max(40, startW + (ev.clientX - startX));
+        const newH = Math.max(20, startH + (ev.clientY - startY));
+        el.style.width = newW + 'px';
+        el.style.height = newH + 'px';
+      }
+
+      function onUp() {
+        isResizing = false;
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      }
+
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+  }
+
+  // 이미지 파일 업로드 처리
+  imageFileInput.addEventListener('change', () => {
+    const file = imageFileInput.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const src = e.target.result;
+      if (pendingImageTarget === 'new') {
+        createElement('image', { src });
+      } else if (pendingImageTarget && pendingImageTarget.dataset.type === 'image') {
+        let img = pendingImageTarget.querySelector('img');
+        if (!img) {
+          img = document.createElement('img');
+          pendingImageTarget.appendChild(img);
+        }
+        img.src = src;
+      }
+      pendingImageTarget = null;
+      imageFileInput.value = ''; // 같은 파일 또 선택해도 이벤트 되게 초기화
+    };
+    reader.readAsDataURL(file);
+  });
+
+  // 모달 관련
+  const modalBackdrop = document.getElementById('modalBackdrop');
+  const modalText = document.getElementById('modalText');
+  const modalFontSize = document.getElementById('modalFontSize');
+  const modalCancel = document.getElementById('modalCancel');
+  const modalSave = document.getElementById('modalSave');
+
+  function openModal(el) {
+    editingEl = el;
+    modalText.value = el.textContent.trim();
+    modalFontSize.value = el.dataset.fontSize || 14;
+    modalBackdrop.classList.add('show');
+    modalText.focus();
+  }
+
+  function closeModal() {
+    modalBackdrop.classList.remove('show');
+    editingEl = null;
+  }
+
+  modalCancel.onclick = closeModal;
+  modalBackdrop.addEventListener('click', (e) => {
+    if (e.target === modalBackdrop) closeModal();
+  });
+
+  modalSave.onclick = () => {
+    if (!editingEl) return;
+    const text = modalText.value;
+    const size = parseInt(modalFontSize.value, 10) || 14;
+    editingEl.textContent = text;
+    editingEl.dataset.fontSize = size;
+    editingEl.style.fontSize = size + 'px';
+    // 리사이즈 핸들 다시 붙이기
+    const handle = document.createElement('div');
+    handle.classList.add('resize-handle');
+    editingEl.appendChild(handle);
+    makeResizable(editingEl, handle);
+    closeModal();
+  };
+
+  // HTML 코드 생성
+  document.getElementById('exportBtn').onclick = () => {
+    const elements = Array.from(canvas.querySelectorAll('.element'));
+    const rect = canvas.getBoundingClientRect();
+    const lines = [];
+    lines.push(`<div class="page" style="position:relative;width:${rect.width}px;height:${rect.height}px;">`);
+    elements.forEach(el => {
+      const type = el.dataset.type;
+      const left = el.style.left || '0px';
+      const top = el.style.top || '0px';
+      const width = el.style.width || el.offsetWidth + 'px';
+      const height = el.style.height || el.offsetHeight + 'px';
+
+      if (type === 'image') {
+        const img = el.querySelector('img');
+        const src = img ? img.src : '';
+        lines.push(
+          `  <img src="${src}" style="position:absolute;left:${left};top:${top};width:${width};height:${height};object-fit:cover;">`
+        );
+      } else {
+        const fontSize = el.dataset.fontSize || 14;
+        const text = (el.textContent || '').trim();
+        let style = `position:absolute;left:${left};top:${top};width:${width};height:${height};font-size:${fontSize}px;display:flex;align-items:center;justify-content:center;text-align:center;`;
+        style += `background-color:${el.style.backgroundColor || '#000'};`;
+        style += `color:${el.style.color || '#fff'};`;
+        const tag = type === 'button' ? 'button' : 'div';
+        lines.push(`  <${tag} style="${style}">${text}</${tag}>`);
+      }
+    });
+    lines.push(`</div>`);
+    codeBox.textContent = lines.join('\n');
+  };
+</script>
+
+</body>
+</html>
